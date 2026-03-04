@@ -1,10 +1,5 @@
 # Algorithmic Trading Signal Engine
 
-Sara | MSc Data Science | B.Tech Artificial Intelligence and Machine Learning
-
----
-
-## Project Overview
 
 This project builds an end-to-end algorithmic trading signal engine that predicts next-day stock price direction using deep learning. The system combines a Bidirectional LSTM and a Transformer model into a weighted ensemble, trained on 5 years of daily OHLCV data enriched with 26 technical indicators.
 
