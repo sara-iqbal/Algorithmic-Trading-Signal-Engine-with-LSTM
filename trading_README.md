@@ -126,7 +126,6 @@ To deploy publicly on Streamlit Cloud:
 1. Push this repository to GitHub
 2. Go to share.streamlit.io and sign in
 3. Click New App, select your repository, and set the main file to app.py
-4. Click Deploy — your public link will be ready in about 2 minutes
 
 ---
 
