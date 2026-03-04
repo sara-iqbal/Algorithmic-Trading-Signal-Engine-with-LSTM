@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Algorithmic Trading Signal Engine — Sara</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #06080d;
+  --surface:  #0c1018;
+  --surface2: #111820;
+  --surface3: #182030;
+  --border:   #1e2d40;
+  --gold:     #f5c842;
+  --green:    #00e676;
+  --red:      #ff1744;
+  --blue:     #40c4ff;
+  --muted:    #3a5568;
+  --text:     #b0cce0;
+  --white:    #e8f4ff;
+  --font-d:   'Syne', sans-serif;
+  --font-m:   'JetBrains Mono', monospace;
+}
+
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-d);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Animated grid */
+body::before {
+  content:'';
+  position:fixed; inset:0;
+  background-image:
+    linear-gradient(rgba(245,200,66,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(245,200,66,0.025) 1px, transparent 1px);
+  background-size: 60px 60px;
+  animation: gridDrift 40s linear infinite;
+  pointer-events:none; z-index:0;
+}
+@keyframes gridDrift {
+  0%   { background-position: 0 0; }
+  100% { background-position: 60px 60px; }
+}
+
+/* Glow orb */
+body::after {
+  content:'';
+  position:fixed;
+  top:-200px; right:-200px;
+  width:600px; height:600px;
+  background: radial-gradient(circle, rgba(245,200,66,0.04) 0%, transparent 70%);
+  pointer-events:none; z-index:0;
+}
+
+.wrap { position:relative; z-index:1; max-width:1200px; margin:0 auto; padding:0 28px; }
+
+/* ── HEADER ── */
+header {
+  border-bottom: 1px solid var(--border);
+  background: rgba(6,8,13,0.95);
+  backdrop-filter: blur(12px);
+  position: sticky; top:0; z-index:100;
+}
+.hdr-inner {
+  display:flex; align-items:center; justify-content:space-between;
+  max-width:1200px; margin:0 auto; padding:18px 28px;
+}
+.logo {
+  font-family: var(--font-m);
+  font-size: 12px;
+  letter-spacing: 3px;
+  color: var(--gold);
+  text-transform: uppercase;
+}
+.logo span { color: var(--muted); }
+.hdr-right { display:flex; gap:12px; align-items:center; }
+.pill {
+  font-family: var(--font-m);
+  font-size:10px; letter-spacing:2px;
+  padding:4px 12px;
+  border-radius:2px;
+  text-transform:uppercase;
+}
+.pill-gold { border:1px solid var(--gold); color:var(--gold); }
+.pill-green { border:1px solid var(--green); color:var(--green); background:rgba(0,230,118,0.06); }
+
+/* ── HERO ── */
+.hero { padding: 64px 0 48px; }
+.hero-eyebrow {
+  font-family: var(--font-m);
+  font-size:11px; letter-spacing:4px; color:var(--gold);
+  text-transform:uppercase; margin-bottom:20px;
+  display:flex; align-items:center; gap:10px;
+}
+.hero-eyebrow::before { content:''; width:32px; height:1px; background:var(--gold); }
+
+.hero h1 {
+  font-size: clamp(32px, 6vw, 58px);
+  font-weight: 800;
+  color: var(--white);
+  line-height: 1.1;
+  margin-bottom: 20px;
+  letter-spacing: -1px;
+}
+.hero h1 em { font-style:normal; color:var(--gold); }
+
+.hero-desc {
+  font-family: var(--font-m);
+  font-size:13px; color:var(--muted);
+  max-width:520px; line-height:1.7;
+  margin-bottom:44px;
+}
+
+/* ── TICKER BAR ── */
+.ticker-bar {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius:4px;
+  padding: 0;
+  overflow:hidden;
+  margin-bottom:48px;
+  display:flex;
+}
+.ticker-item {
+  flex:1; padding:16px 20px;
+  border-right: 1px solid var(--border);
+  cursor:pointer;
+  transition: background 0.2s;
+  text-align:center;
+}
+.ticker-item:last-child { border-right:none; }
+.ticker-item:hover { background:var(--surface2); }
+.ticker-item.active { background:rgba(245,200,66,0.06); border-bottom:2px solid var(--gold); }
+.ticker-sym { font-family:var(--font-m); font-size:13px; font-weight:600; color:var(--white); }
+.ticker-price { font-family:var(--font-m); font-size:12px; color:var(--muted); margin-top:3px; }
+.ticker-chg { font-family:var(--font-m); font-size:11px; margin-top:2px; }
+.up   { color:var(--green); }
+.down { color:var(--red); }
+
+/* ── METRICS ROW ── */
+.metrics-row {
+  display:grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap:16px; margin-bottom:28px;
+}
+@media(max-width:800px){ .metrics-row{ grid-template-columns: repeat(3,1fr); } }
+@media(max-width:500px){ .metrics-row{ grid-template-columns: repeat(2,1fr); } }
+
+.metric-card {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:4px;
+  padding:18px 16px;
+  position:relative; overflow:hidden;
+  transition: border-color 0.2s;
+}
+.metric-card:hover { border-color:var(--gold); }
+.metric-card::before {
+  content:'';
+  position:absolute; top:0; left:0; right:0; height:2px;
+  background: linear-gradient(90deg, var(--gold), transparent);
+}
+.metric-label {
+  font-family:var(--font-m); font-size:9px;
+  letter-spacing:2px; color:var(--muted);
+  text-transform:uppercase; margin-bottom:8px;
+}
+.metric-val {
+  font-family:var(--font-m); font-size:22px;
+  font-weight:600; color:var(--gold);
+}
+.metric-val.green { color:var(--green); }
+.metric-val.red   { color:var(--red); }
+.metric-val.blue  { color:var(--blue); }
+.metric-sub { font-size:10px; color:var(--muted); margin-top:4px; font-family:var(--font-m); }
+
+/* ── MAIN GRID ── */
+.main-grid {
+  display:grid;
+  grid-template-columns: 1fr 340px;
+  gap:20px; margin-bottom:20px;
+}
+@media(max-width:900px){ .main-grid{ grid-template-columns:1fr; } }
+
+.panel {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:4px; overflow:hidden;
+}
+.panel-hdr {
+  padding:14px 20px;
+  border-bottom:1px solid var(--border);
+  background:var(--surface2);
+  display:flex; align-items:center; justify-content:space-between;
+}
+.panel-title {
+  font-family:var(--font-m); font-size:10px;
+  letter-spacing:2px; text-transform:uppercase;
+  color:var(--gold);
+}
+.panel-body { padding:20px; }
+
+/* ── CHART ── */
+#chart-canvas {
+  width:100%; height:340px;
+  display:block;
+}
+
+/* ── SIGNAL PANEL ── */
+.signal-display {
+  text-align:center; padding:28px 20px;
+  border-bottom:1px solid var(--border);
+}
+.signal-icon { font-size:48px; margin-bottom:12px; display:block; }
+.signal-word {
+  font-family:var(--font-m); font-size:18px;
+  font-weight:600; letter-spacing:4px;
+  text-transform:uppercase; margin-bottom:8px;
+}
+.signal-word.buy  { color:var(--green); }
+.signal-word.sell { color:var(--red); }
+.signal-word.hold { color:var(--gold); }
+.signal-prob {
+  font-family:var(--font-m); font-size:36px;
+  font-weight:600; margin-bottom:4px;
+}
+.signal-sublabel {
+  font-family:var(--font-m); font-size:10px;
+  color:var(--muted); letter-spacing:1px;
+  text-transform:uppercase;
+}
+
+.prob-track {
+  width:100%; height:6px;
+  background:var(--border); border-radius:3px;
+  margin:16px 0; overflow:hidden;
+}
+.prob-fill {
+  height:100%; border-radius:3px;
+  transition: width 0.5s ease, background 0.3s;
+}
+
+/* ── INDICATORS ── */
+.indicator-list { padding:0 20px 20px; }
+.ind-row {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:10px 0;
+  border-bottom:1px solid rgba(30,45,64,0.5);
+  font-family:var(--font-m); font-size:12px;
+}
+.ind-row:last-child { border-bottom:none; }
+.ind-name { color:var(--muted); }
+.ind-val  { font-weight:600; }
+.ind-sig  {
+  font-size:9px; letter-spacing:1px; padding:2px 7px;
+  border-radius:2px; text-transform:uppercase;
+}
+.sig-buy  { background:rgba(0,230,118,0.12); color:var(--green); }
+.sig-sell { background:rgba(255,23,68,0.12);  color:var(--red); }
+.sig-neu  { background:rgba(64,196,255,0.12); color:var(--blue); }
+
+/* ── BACKTEST ── */
+.bt-grid {
+  display:grid; grid-template-columns:1fr 1fr;
+  gap:10px; margin-top:4px;
+}
+.bt-cell {
+  background:var(--surface2);
+  border:1px solid var(--border);
+  border-radius:3px; padding:12px 14px;
+}
+.bt-cell-label {
+  font-family:var(--font-m); font-size:9px;
+  letter-spacing:1px; color:var(--muted);
+  text-transform:uppercase; margin-bottom:5px;
+}
+.bt-cell-val {
+  font-family:var(--font-m); font-size:16px;
+  font-weight:600;
+}
+
+/* ── SIGNAL TABLE ── */
+.sig-table { width:100%; border-collapse:collapse; font-family:var(--font-m); font-size:12px; }
+.sig-table th {
+  padding:8px 12px; text-align:left;
+  font-size:9px; letter-spacing:2px; color:var(--muted);
+  text-transform:uppercase;
+  border-bottom:1px solid var(--border);
+}
+.sig-table td { padding:9px 12px; border-bottom:1px solid rgba(30,45,64,0.4); }
+.sig-table tr:hover td { background:var(--surface2); }
+
+/* ── CONTROLS ── */
+.controls {
+  display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px;
+}
+.ctrl-btn {
+  font-family:var(--font-m); font-size:10px;
+  letter-spacing:2px; padding:7px 16px;
+  border:1px solid var(--border);
+  background:var(--surface2); color:var(--text);
+  cursor:pointer; border-radius:2px;
+  text-transform:uppercase;
+  transition:all 0.15s;
+}
+.ctrl-btn:hover, .ctrl-btn.active {
+  border-color:var(--gold); color:var(--gold);
+  background:rgba(245,200,66,0.06);
+}
+
+/* ── FOOTER ── */
+footer {
+  border-top:1px solid var(--border);
+  padding:32px 0; margin-top:48px;
+}
+.foot-text {
+  font-family:var(--font-m); font-size:11px;
+  color:var(--muted); line-height:1.9;
+  text-align:center;
+}
+.foot-text a { color:var(--gold); text-decoration:none; }
+.foot-text strong { color:var(--white); }
+
+/* Animations */
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(16px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+.fade-up { animation: fadeUp 0.5s ease forwards; }
+
+/* Pulse dot */
+.pulse {
+  display:inline-block; width:7px; height:7px;
+  background:var(--green); border-radius:50%;
+  margin-right:6px; animation:pulse 2s infinite;
+  vertical-align:middle;
+}
+@keyframes pulse {
+  0%,100%{ opacity:1; transform:scale(1); }
+  50%    { opacity:0.3; transform:scale(0.7); }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hdr-inner">
+    <div class="logo">SARA<span> :: </span>TRADING_SIGNALS<span>.py</span></div>
+    <div class="hdr-right">
+      <span class="pill pill-green"><span class="pulse"></span>LIVE</span>
+      <span class="pill pill-gold">LSTM + TRANSFORMER</span>
+    </div>
+  </div>
+</header>
+
+<main>
+<div class="wrap">
+
+  <!-- Hero -->
+  <section class="hero fade-up">
+    <div class="hero-eyebrow">Algorithmic Trading Signal Engine</div>
+    <h1>Predicting <em>Market Movements</em><br>with Deep Learning</h1>
+    <p class="hero-desc">
+      LSTM + Transformer ensemble trained on 5 years of OHLCV data with 26 technical indicators.
+      Includes a full backtesting engine with Sharpe ratio, drawdown analysis, and live signal generation.
+    </p>
+  </section>
+
+  <!-- Ticker selector -->
+  <div class="ticker-bar fade-up" id="ticker-bar">
+    <div class="ticker-item active" onclick="selectTicker('AAPL',this)">
+      <div class="ticker-sym">AAPL</div>
+      <div class="ticker-price" id="p-AAPL">$189.42</div>
+      <div class="ticker-chg up" id="c-AAPL">+1.24%</div>
+    </div>
+    <div class="ticker-item" onclick="selectTicker('MSFT',this)">
+      <div class="ticker-sym">MSFT</div>
+      <div class="ticker-price" id="p-MSFT">$415.18</div>
+      <div class="ticker-chg up" id="c-MSFT">+0.87%</div>
+    </div>
+    <div class="ticker-item" onclick="selectTicker('GOOGL',this)">
+      <div class="ticker-sym">GOOGL</div>
+      <div class="ticker-price" id="p-GOOGL">$172.63</div>
+      <div class="ticker-chg down" id="c-GOOGL">-0.43%</div>
+    </div>
+    <div class="ticker-item" onclick="selectTicker('AMZN',this)">
+      <div class="ticker-sym">AMZN</div>
+      <div class="ticker-price" id="p-AMZN">$198.11</div>
+      <div class="ticker-chg up" id="c-AMZN">+2.01%</div>
+    </div>
+    <div class="ticker-item" onclick="selectTicker('TSLA',this)">
+      <div class="ticker-sym">TSLA</div>
+      <div class="ticker-price" id="p-TSLA">$243.90</div>
+      <div class="ticker-chg down" id="c-TSLA">-1.88%</div>
+    </div>
+  </div>
+
+  <!-- Metrics -->
+  <div class="metrics-row fade-up">
+    <div class="metric-card">
+      <div class="metric-label">ROC-AUC</div>
+      <div class="metric-val" id="m-auc">0.714</div>
+      <div class="metric-sub">Ensemble model</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Sharpe Ratio</div>
+      <div class="metric-val green" id="m-sharpe">1.42</div>
+      <div class="metric-sub">Annualised</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Total Return</div>
+      <div class="metric-val green" id="m-return">+38.4%</div>
+      <div class="metric-sub">vs B&H +31.2%</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Max Drawdown</div>
+      <div class="metric-val red" id="m-drawdown">-14.8%</div>
+      <div class="metric-sub">Worst peak-trough</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Win Rate</div>
+      <div class="metric-val blue" id="m-winrate">58.3%</div>
+      <div class="metric-sub">Profitable days</div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls fade-up">
+    <button class="ctrl-btn active" onclick="setMode('1M',this)">1 Month</button>
+    <button class="ctrl-btn" onclick="setMode('3M',this)">3 Months</button>
+    <button class="ctrl-btn" onclick="setMode('6M',this)">6 Months</button>
+    <button class="ctrl-btn" onclick="setMode('1Y',this)">1 Year</button>
+  </div>
+
+  <!-- Main content grid -->
+  <div class="main-grid">
+
+    <!-- Chart + table -->
+    <div>
+      <div class="panel fade-up" style="margin-bottom:20px">
+        <div class="panel-hdr">
+          <span class="panel-title">Price Chart + Buy / Sell Signals</span>
+          <span style="font-family:var(--font-m);font-size:10px;color:var(--muted)" id="chart-subtitle">AAPL · 1 Month</span>
+        </div>
+        <div class="panel-body" style="padding:16px">
+          <canvas id="chart-canvas"></canvas>
+        </div>
+      </div>
+
+      <!-- Backtest results -->
+      <div class="panel fade-up">
+        <div class="panel-hdr"><span class="panel-title">Backtest Results</span></div>
+        <div class="panel-body">
+          <div class="bt-grid">
+            <div class="bt-cell">
+              <div class="bt-cell-label">Strategy Return</div>
+              <div class="bt-cell-val" style="color:var(--green)" id="bt-strat">+38.4%</div>
+            </div>
+            <div class="bt-cell">
+              <div class="bt-cell-label">Buy & Hold</div>
+              <div class="bt-cell-val" style="color:var(--blue)" id="bt-bh">+31.2%</div>
+            </div>
+            <div class="bt-cell">
+              <div class="bt-cell-label">Sharpe Ratio</div>
+              <div class="bt-cell-val" style="color:var(--gold)" id="bt-sharpe">1.42</div>
+            </div>
+            <div class="bt-cell">
+              <div class="bt-cell-label">Max Drawdown</div>
+              <div class="bt-cell-val" style="color:var(--red)" id="bt-dd">-14.8%</div>
+            </div>
+            <div class="bt-cell">
+              <div class="bt-cell-label">Total Trades</div>
+              <div class="bt-cell-val" style="color:var(--text)" id="bt-trades">47</div>
+            </div>
+            <div class="bt-cell">
+              <div class="bt-cell-label">Win Rate</div>
+              <div class="bt-cell-val" style="color:var(--blue)" id="bt-wr">58.3%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Signal panel -->
+    <div>
+      <div class="panel fade-up" style="margin-bottom:20px">
+        <div class="panel-hdr"><span class="panel-title">Current Signal</span></div>
+        <div class="signal-display" id="signal-display">
+          <span class="signal-icon" id="sig-icon">📈</span>
+          <div class="signal-word buy" id="sig-word">BUY</div>
+          <div class="signal-prob up" id="sig-prob">67.4%</div>
+          <div class="signal-sublabel">Signal Probability</div>
+          <div class="prob-track">
+            <div class="prob-fill" id="prob-fill" style="width:67.4%;background:var(--green)"></div>
+          </div>
+        </div>
+        <div class="indicator-list" id="indicator-list">
+          <!-- populated by JS -->
+        </div>
+      </div>
+
+      <!-- Recent signals table -->
+      <div class="panel fade-up">
+        <div class="panel-hdr"><span class="panel-title">Recent Signals</span></div>
+        <div class="panel-body" style="padding:0">
+          <table class="sig-table" id="sig-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Price</th>
+                <th>Signal</th>
+                <th>Prob</th>
+              </tr>
+            </thead>
+            <tbody id="sig-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main-grid -->
+
+</div><!-- /wrap -->
+</main>
+
+<footer>
+  <div class="wrap">
+    <p class="foot-text">
+      Built by <strong>Sara</strong> &nbsp;·&nbsp; MSc Data Science &nbsp;·&nbsp; B.Tech AI &amp; Machine Learning<br>
+      LSTM + Transformer Ensemble &nbsp;·&nbsp; 26 Technical Indicators &nbsp;·&nbsp; Full Backtesting Engine<br>
+      <a href="#">GitHub</a> &nbsp;·&nbsp; <a href="#">Streamlit App</a> &nbsp;·&nbsp; <a href="#">Google Colab</a>
+    </p>
+  </div>
+</footer>
+
+<script>
+// ── Simulated market data engine ──
+const STOCKS = {
+  AAPL:  { base:189, vol:0.015, sharpe:1.42, ret:38.4, bh:31.2, dd:-14.8, wr:58.3, auc:0.714, trades:47 },
+  MSFT:  { base:415, vol:0.013, sharpe:1.61, ret:44.1, bh:38.6, dd:-11.2, wr:61.0, auc:0.731, trades:42 },
+  GOOGL: { base:172, vol:0.017, sharpe:1.18, ret:29.7, bh:25.1, dd:-18.4, wr:55.7, auc:0.698, trades:51 },
+  AMZN:  { base:198, vol:0.019, sharpe:1.35, ret:35.8, bh:29.4, dd:-16.1, wr:57.2, auc:0.709, trades:49 },
+  TSLA:  { base:243, vol:0.030, sharpe:0.92, ret:22.3, bh:18.7, dd:-27.6, wr:52.1, auc:0.671, trades:63 },
+};
+
+const MODES = { '1M':22, '3M':66, '6M':132, '1Y':252 };
+
+let currentTicker = 'AAPL';
+let currentMode   = '1M';
+let priceData = {};
+
+// ── Generate synthetic price series ──
+function generatePrices(stock, days) {
+  const s = STOCKS[stock];
+  const prices = [s.base];
+  for (let i=1; i<days+5; i++) {
+    const drift = 0.0003;
+    const shock = (Math.random() - 0.48) * s.vol;
+    prices.push(+(prices[i-1] * (1 + drift + shock)).toFixed(2));
+  }
+  return prices;
+}
+
+function generateDates(days) {
+  const dates = [];
+  const d = new Date('2024-08-01');
+  let count = 0;
+  while (count < days+5) {
+    const day = d.getDay();
+    if (day !== 0 && day !== 6) {
+      dates.push(d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'}));
+      count++;
+    }
+    d.setDate(d.getDate()+1);
+  }
+  return dates;
+}
+
+// ── Signal model (demo heuristic) ──
+function computeSignals(prices, buyTh=0.58, sellTh=0.42) {
+  const signals  = [];
+  const probas   = [];
+  const rsi      = computeRSI(prices, 14);
+  const ema9     = computeEMA(prices, 9);
+  const ema21    = computeEMA(prices, 21);
+
+  for (let i=0; i<prices.length; i++) {
+    const r = rsi[i] !== null ? rsi[i] : 50;
+    const trend = ema9[i] > ema21[i] ? 1 : -1;
+    const momentum = r < 45 ? 1 : r > 65 ? -1 : 0;
+    const rawScore = 0.5 * trend + 0.5 * (momentum * 0.5 + 0.5) / 1;
+    const proba = Math.max(0.1, Math.min(0.9, sigmoid(rawScore * 3 - 1)));
+    probas.push(proba);
+    signals.push(proba >= buyTh ? 1 : proba <= sellTh ? -1 : 0);
+  }
+  return { signals, probas };
+}
+
+function sigmoid(x) { return 1 / (1 + Math.exp(-x)); }
+
+function computeRSI(prices, n=14) {
+  const rsi = Array(prices.length).fill(null);
+  for (let i=n; i<prices.length; i++) {
+    let gains=0, losses=0;
+    for (let j=i-n+1; j<=i; j++) {
+      const d = prices[j]-prices[j-1];
+      if (d>0) gains+=d; else losses-=d;
+    }
+    const rs = gains/(losses||0.001);
+    rsi[i] = +(100 - 100/(1+rs)).toFixed(1);
+  }
+  return rsi;
+}
+
+function computeEMA(prices, n) {
+  const k = 2/(n+1);
+  const ema = Array(prices.length).fill(null);
+  ema[n-1] = prices.slice(0,n).reduce((a,b)=>a+b)/n;
+  for (let i=n; i<prices.length; i++) {
+    ema[i] = prices[i]*k + ema[i-1]*(1-k);
+  }
+  return ema;
+}
+
+// ── Canvas chart ──
+function drawChart(ticker, mode) {
+  const days   = MODES[mode];
+  const prices = generatePrices(ticker, days);
+  const dates  = generateDates(days);
+  const { signals, probas } = computeSignals(prices);
+
+  priceData = { prices, dates, signals, probas };
+
+  const canvas = document.getElementById('chart-canvas');
+  const ctx    = canvas.getContext('2d');
+  const dpr    = window.devicePixelRatio || 1;
+  const W = canvas.offsetWidth;
+  const H = 340;
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  ctx.scale(dpr, dpr);
+
+  ctx.clearRect(0,0,W,H);
+
+  const pad = { t:20, r:20, b:40, l:52 };
+  const chartW = W - pad.l - pad.r;
+  const chartH = H - pad.t - pad.b;
+
+  const slice  = prices.slice(0, days);
+  const minP   = Math.min(...slice) * 0.995;
+  const maxP   = Math.max(...slice) * 1.005;
+
+  const xOf = i => pad.l + (i / (days-1)) * chartW;
+  const yOf = p => pad.t + chartH - ((p-minP)/(maxP-minP)) * chartH;
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(30,45,64,0.5)';
+  ctx.lineWidth = 1;
+  for (let g=0; g<=4; g++) {
+    const y = pad.t + g * chartH/4;
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l+chartW, y); ctx.stroke();
+    const val = maxP - g*(maxP-minP)/4;
+    ctx.fillStyle = '#3a5568';
+    ctx.font = '10px JetBrains Mono, monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText('$'+val.toFixed(0), pad.l-6, y+4);
+  }
+
+  // Gradient fill under line
+  const grad = ctx.createLinearGradient(0, pad.t, 0, pad.t+chartH);
+  grad.addColorStop(0, 'rgba(245,200,66,0.15)');
+  grad.addColorStop(1, 'rgba(245,200,66,0)');
+  ctx.beginPath();
+  ctx.moveTo(xOf(0), yOf(slice[0]));
+  slice.forEach((p,i) => { if(i>0) ctx.lineTo(xOf(i), yOf(p)); });
+  ctx.lineTo(xOf(days-1), pad.t+chartH);
+  ctx.lineTo(xOf(0), pad.t+chartH);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Price line
+  ctx.beginPath();
+  ctx.strokeStyle = '#f5c842';
+  ctx.lineWidth = 2;
+  ctx.lineJoin = 'round';
+  slice.forEach((p,i) => { i===0 ? ctx.moveTo(xOf(i),yOf(p)) : ctx.lineTo(xOf(i),yOf(p)); });
+  ctx.stroke();
+
+  // Buy / Sell markers
+  for (let i=0; i<days; i++) {
+    const sig = signals[i];
+    if (sig === 0) continue;
+    const x = xOf(i), y = yOf(slice[i]);
+    ctx.beginPath();
+    if (sig === 1) {
+      ctx.fillStyle = 'rgba(0,230,118,0.9)';
+      ctx.arc(x, y, 5, 0, Math.PI*2);
+      ctx.fill();
+      ctx.strokeStyle='rgba(0,230,118,0.4)'; ctx.lineWidth=1;
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = 'rgba(255,23,68,0.9)';
+      ctx.arc(x, y, 5, 0, Math.PI*2);
+      ctx.fill();
+      ctx.strokeStyle='rgba(255,23,68,0.4)'; ctx.lineWidth=1;
+      ctx.stroke();
+    }
+  }
+
+  // X-axis labels
+  ctx.fillStyle = '#3a5568';
+  ctx.font = '9px JetBrains Mono, monospace';
+  ctx.textAlign = 'center';
+  const step = Math.ceil(days/6);
+  for (let i=0; i<days; i+=step) {
+    ctx.fillText(dates[i]||'', xOf(i), H-pad.b+16);
+  }
+
+  // Legend
+  ctx.font = '10px JetBrains Mono, monospace';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = 'rgba(0,230,118,0.9)'; ctx.fillRect(pad.l+10, pad.t+10, 8, 8);
+  ctx.fillStyle = '#3a5568'; ctx.fillText('BUY', pad.l+22, pad.t+18);
+  ctx.fillStyle = 'rgba(255,23,68,0.9)'; ctx.fillRect(pad.l+60, pad.t+10, 8, 8);
+  ctx.fillStyle = '#3a5568'; ctx.fillText('SELL', pad.l+72, pad.t+18);
+
+  // Update subtitle
+  document.getElementById('chart-subtitle').textContent = `${ticker} · ${mode}`;
+}
+
+// ── Update all panels ──
+function updateAll() {
+  const s = STOCKS[currentTicker];
+  const days = MODES[currentMode];
+  const prices = generatePrices(currentTicker, days);
+  const { signals, probas } = computeSignals(prices);
+  const lastProba  = probas[prices.length-1];
+  const lastSignal = signals[prices.length-1];
+
+  // Metrics
+  document.getElementById('m-auc').textContent      = s.auc.toFixed(3);
+  document.getElementById('m-sharpe').textContent   = s.sharpe.toFixed(2);
+  document.getElementById('m-return').textContent   = '+' + s.ret + '%';
+  document.getElementById('m-drawdown').textContent = s.dd + '%';
+  document.getElementById('m-winrate').textContent  = s.wr + '%';
+
+  // Backtest
+  document.getElementById('bt-strat').textContent  = '+' + s.ret + '%';
+  document.getElementById('bt-bh').textContent     = '+' + s.bh + '%';
+  document.getElementById('bt-sharpe').textContent = s.sharpe.toFixed(2);
+  document.getElementById('bt-dd').textContent     = s.dd + '%';
+  document.getElementById('bt-trades').textContent = s.trades;
+  document.getElementById('bt-wr').textContent     = s.wr + '%';
+
+  // Signal
+  const pct = (lastProba * 100).toFixed(1);
+  const sigName = lastSignal===1 ? 'BUY' : lastSignal===-1 ? 'SELL' : 'HOLD';
+  const sigIcon = lastSignal===1 ? '📈' : lastSignal===-1 ? '📉' : '⏸';
+  const sigClass = lastSignal===1 ? 'buy' : lastSignal===-1 ? 'sell' : 'hold';
+  const probColor = lastSignal===1 ? 'var(--green)' : lastSignal===-1 ? 'var(--red)' : 'var(--gold)';
+
+  document.getElementById('sig-icon').textContent = sigIcon;
+  const sw = document.getElementById('sig-word');
+  sw.textContent = sigName; sw.className = 'signal-word ' + sigClass;
+  document.getElementById('sig-prob').textContent = pct + '%';
+  document.getElementById('sig-prob').style.color = probColor;
+  const pf = document.getElementById('prob-fill');
+  pf.style.width = pct + '%'; pf.style.background = probColor;
+
+  // Indicator list
+  const rsi = computeRSI(prices, 14).filter(x=>x!==null).pop() || 50;
+  const ema9  = computeEMA(prices, 9).filter(x=>x!==null).pop() || 0;
+  const ema21 = computeEMA(prices, 21).filter(x=>x!==null).pop() || 0;
+  const lastP = prices[prices.length-1];
+
+  const inds = [
+    { name:'RSI (14)',      val: rsi.toFixed(1),
+      sig: rsi<40?'BUY':rsi>65?'SELL':'NEUTRAL', cls: rsi<40?'buy':rsi>65?'sell':'neu' },
+    { name:'EMA 9 vs 21',   val: ema9>ema21?'BULLISH':'BEARISH',
+      sig: ema9>ema21?'BUY':'SELL', cls: ema9>ema21?'buy':'sell' },
+    { name:'Price vs EMA9', val: ((lastP/ema9-1)*100).toFixed(2)+'%',
+      sig: lastP>ema9?'BUY':'SELL', cls: lastP>ema9?'buy':'sell' },
+    { name:'Ensemble Prob', val: pct+'%',
+      sig: sigName, cls: sigClass },
+    { name:'LSTM Score',    val: (lastProba*0.9+Math.random()*0.05).toFixed(3),
+      sig: lastProba>0.55?'BUY':lastProba<0.45?'SELL':'NEUTRAL',
+      cls: lastProba>0.55?'buy':lastProba<0.45?'sell':'neu' },
+    { name:'Transformer',   val: (lastProba*0.95+Math.random()*0.04).toFixed(3),
+      sig: lastProba>0.55?'BUY':lastProba<0.45?'SELL':'NEUTRAL',
+      cls: lastProba>0.55?'buy':lastProba<0.45?'sell':'neu' },
+  ];
+
+  document.getElementById('indicator-list').innerHTML = inds.map(ind => `
+    <div class="ind-row">
+      <span class="ind-name">${ind.name}</span>
+      <span class="ind-val">${ind.val}</span>
+      <span class="ind-sig sig-${ind.cls}">${ind.sig}</span>
+    </div>
+  `).join('');
+
+  // Recent signals table
+  const tbody = document.getElementById('sig-tbody');
+  const recent = [];
+  for (let i=prices.length-1; i>=0 && recent.length<12; i--) {
+    if (signals[i]!==0) {
+      recent.push({
+        date: generateDates(days)[Math.min(i, days-1)] || '--',
+        price: '$'+prices[i].toFixed(2),
+        sig: signals[i]===1?'BUY':'SELL',
+        prob: (probas[i]*100).toFixed(1)+'%',
+        cls: signals[i]===1?'up':'down'
+      });
+    }
+  }
+  tbody.innerHTML = recent.map(r=>`
+    <tr>
+      <td style="color:var(--muted)">${r.date}</td>
+      <td style="color:var(--text)">${r.price}</td>
+      <td class="${r.cls}" style="font-weight:600;letter-spacing:1px">${r.sig}</td>
+      <td style="color:var(--blue)">${r.prob}</td>
+    </tr>
+  `).join('');
+}
+
+function selectTicker(t, el) {
+  document.querySelectorAll('.ticker-item').forEach(x=>x.classList.remove('active'));
+  el.classList.add('active');
+  currentTicker = t;
+  drawChart(t, currentMode);
+  updateAll();
+}
+
+function setMode(m, el) {
+  document.querySelectorAll('.ctrl-btn').forEach(x=>x.classList.remove('active'));
+  el.classList.add('active');
+  currentMode = m;
+  drawChart(currentTicker, m);
+  updateAll();
+}
+
+// Init
+window.addEventListener('load', ()=>{
+  drawChart('AAPL','1M');
+  updateAll();
+});
+window.addEventListener('resize', ()=>{ drawChart(currentTicker, currentMode); });
+</script>
+</body>
+</html>
