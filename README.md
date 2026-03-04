@@ -126,10 +126,9 @@ To deploy publicly on Streamlit Cloud:
 
 ## Links
 
-- GitHub Repository: update this after uploading
-- Live Streamlit App: update this after deploying
-- Google Colab Notebook: update this after uploading
-
+- GitHub Repository: https://github.com/sara-iqbal/Algorithmic-Trading-Signal-Engine-with-LSTM/
+- Live Streamlit App: (https://sara-iqbal.github.io/Algorithmic-Trading-Signal-Engine-with-LSTM/)
+- Google Colab Notebook: https://colab.research.google.com/drive/1KENaM0hX2HX8AnsN1TdgOyDsp5bGGbyz#scrollTo=d3_e7ZJYwTla
 ---
 
 ## About
