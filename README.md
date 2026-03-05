@@ -6,6 +6,12 @@ This project builds an end-to-end algorithmic trading signal engine that predict
 The project includes a full backtesting engine that simulates real trading with transaction costs, and produces key metrics including Sharpe ratio, max drawdown, and win rate. The final application is deployed publicly on Streamlit Cloud where users can select any stock, adjust signal thresholds, and view live predictions.
 
 ---
+## Links
+
+- GitHub Repository: https://github.com/sara-iqbal/Algorithmic-Trading-Signal-Engine-with-LSTM/
+- Live Streamlit App: (https://sara-iqbal.github.io/Algorithmic-Trading-Signal-Engine-with-LSTM/)
+- Google Colab Notebook: https://colab.research.google.com/drive/1KENaM0hX2HX8AnsN1TdgOyDsp5bGGbyz#scrollTo=d3_e7ZJYwTla
+---
 
 ## Model Performance (AAPL backtest)
 
@@ -123,14 +129,6 @@ To deploy publicly on Streamlit Cloud:
 3. Click New App, select your repository, and set the main file to app.py
 
 ---
-
-## Links
-
-- GitHub Repository: https://github.com/sara-iqbal/Algorithmic-Trading-Signal-Engine-with-LSTM/
-- Live Streamlit App: (https://sara-iqbal.github.io/Algorithmic-Trading-Signal-Engine-with-LSTM/)
-- Google Colab Notebook: https://colab.research.google.com/drive/1KENaM0hX2HX8AnsN1TdgOyDsp5bGGbyz#scrollTo=d3_e7ZJYwTla
----
-
 ## About
 
 Built by Sara. MSc Data Science. B.Tech in Artificial Intelligence and Machine Learning. Based in London.
